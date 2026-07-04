@@ -128,7 +128,11 @@ func (rc *RunContext) GetBindsAndMounts() ([]string, map[string]string) {
 	name := rc.jobContainerName()
 
 	if rc.Config.ContainerDaemonSocket == "" {
-		rc.Config.ContainerDaemonSocket = "/var/run/docker.sock"
+		if socket, found := container.SocketLocation(); found {
+			rc.Config.ContainerDaemonSocket = socket
+		} else {
+			rc.Config.ContainerDaemonSocket = "/var/run/docker.sock"
+		}
 	}
 
 	binds := []string{}
@@ -1152,7 +1156,11 @@ func (rc *RunContext) handleServiceCredentials(ctx context.Context, creds map[st
 // GetServiceBindsAndMounts returns the binds and mounts for the service container, resolving paths as appropriate
 func (rc *RunContext) GetServiceBindsAndMounts(svcVolumes []string) ([]string, map[string]string) {
 	if rc.Config.ContainerDaemonSocket == "" {
-		rc.Config.ContainerDaemonSocket = "/var/run/docker.sock"
+		if socket, found := container.SocketLocation(); found {
+			rc.Config.ContainerDaemonSocket = socket
+		} else {
+			rc.Config.ContainerDaemonSocket = "/var/run/docker.sock"
+		}
 	}
 	binds := []string{}
 	if rc.Config.ContainerDaemonSocket != "-" {

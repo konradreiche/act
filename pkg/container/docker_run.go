@@ -239,6 +239,28 @@ func GetDockerClient(_ context.Context) (cli client.APIClient, err error) {
 	return cli, nil
 }
 
+// IsPodman returns true if the connected container daemon is Podman.
+func IsPodman(ctx context.Context) bool {
+	cli, err := GetDockerClient(ctx)
+	if err != nil {
+		return false
+	}
+	defer cli.Close()
+	ver, err := cli.ServerVersion(ctx, client.ServerVersionOptions{})
+	if err != nil {
+		return false
+	}
+	if strings.Contains(strings.ToLower(ver.Platform.Name), "podman") {
+		return true
+	}
+	for _, c := range ver.Components {
+		if strings.EqualFold(c.Name, "Podman Engine") {
+			return true
+		}
+	}
+	return false
+}
+
 func GetHostInfo(ctx context.Context) (info system.Info, err error) {
 	var cli client.APIClient
 	cli, err = GetDockerClient(ctx)
@@ -409,6 +431,20 @@ func (cr *containerReference) mergeContainerConfigs(ctx context.Context, config 
 	return config, hostConfig, nil
 }
 
+// ensureNamedVolumes pre-creates named volumes before ContainerCreate so that
+// parallel job starts do not race on volume creation. Docker silently reuses an
+// existing volume, but Podman's compat endpoint returns "volume already exists".
+// VolumeCreate is idempotent on both runtimes: it returns the existing volume
+// without error if one with that name already exists.
+func (cr *containerReference) ensureNamedVolumes(ctx context.Context) error {
+	for name := range cr.input.Mounts {
+		if _, err := cr.cli.VolumeCreate(ctx, client.VolumeCreateOptions{Name: name}); err != nil {
+			return fmt.Errorf("failed to create volume %s: %w", name, err)
+		}
+	}
+	return nil
+}
+
 func (cr *containerReference) create(capAdd []string, capDrop []string) common.Executor {
 	return func(ctx context.Context) error {
 		if cr.id != "" {
@@ -488,6 +524,10 @@ func (cr *containerReference) create(capAdd []string, capDrop []string) common.E
 					input.NetworkMode: endpointConfig,
 				},
 			}
+		}
+
+		if err := cr.ensureNamedVolumes(ctx); err != nil {
+			return err
 		}
 
 		createResult, err := cr.cli.ContainerCreate(ctx, client.ContainerCreateOptions{

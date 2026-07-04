@@ -47,7 +47,7 @@ func TestGetSocketAndHostOnlySocket(t *testing.T) {
 	socketURI := "/path/to/my.socket"
 	os.Unsetenv("DOCKER_HOST")
 	CommonSocketLocations = originalCommonSocketLocations
-	defaultSocket, defaultSocketFound := socketLocation()
+	defaultSocket, defaultSocketFound := SocketLocation()
 
 	// Act
 	ret, err := GetSocketAndHost(socketURI)
@@ -77,7 +77,7 @@ func TestGetSocketAndHostNoHostNoSocket(t *testing.T) {
 	// Arrange
 	CommonSocketLocations = originalCommonSocketLocations
 	os.Unsetenv("DOCKER_HOST")
-	defaultSocket, found := socketLocation()
+	defaultSocket, found := SocketLocation()
 
 	// Act
 	ret, err := GetSocketAndHost("")
@@ -90,7 +90,7 @@ func TestGetSocketAndHostNoHostNoSocket(t *testing.T) {
 
 // Catch
 // > Your code breaks setting DOCKER_HOST if shouldMount is false.
-// > This happens if neither DOCKER_HOST nor --container-daemon-socket has a value, but socketLocation() returns a URI
+// > This happens if neither DOCKER_HOST nor --container-daemon-socket has a value, but SocketLocation() returns a URI
 func TestGetSocketAndHostNoHostNoSocketDefaultLocation(t *testing.T) {
 	// Arrange
 	mySocketFile, tmpErr := os.CreateTemp("", "act-*.sock")
@@ -101,7 +101,7 @@ func TestGetSocketAndHostNoHostNoSocketDefaultLocation(t *testing.T) {
 	os.Unsetenv("DOCKER_HOST")
 
 	CommonSocketLocations = []string{mySocket}
-	defaultSocket, found := socketLocation()
+	defaultSocket, found := SocketLocation()
 
 	// Act
 	ret, err := GetSocketAndHost("")
@@ -118,7 +118,7 @@ func TestGetSocketAndHostNoHostInvalidSocket(t *testing.T) {
 	os.Unsetenv("DOCKER_HOST")
 	mySocket := "/my/socket/path.sock"
 	CommonSocketLocations = []string{"/unusual", "/socket", "/location"}
-	defaultSocket, found := socketLocation()
+	defaultSocket, found := SocketLocation()
 
 	// Act
 	ret, err := GetSocketAndHost(mySocket)
@@ -135,7 +135,7 @@ func TestGetSocketAndHostOnlySocketValidButUnusualLocation(t *testing.T) {
 	socketURI := "unix:///path/to/my.socket"
 	CommonSocketLocations = []string{"/unusual", "/location"}
 	os.Unsetenv("DOCKER_HOST")
-	defaultSocket, found := socketLocation()
+	defaultSocket, found := SocketLocation()
 
 	// Act
 	ret, err := GetSocketAndHost(socketURI)

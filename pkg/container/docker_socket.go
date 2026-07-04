@@ -19,8 +19,9 @@ var CommonSocketLocations = []string{
 	"$HOME/.docker/run/docker.sock",
 }
 
-// returns socket URI or false if not found any
-func socketLocation() (string, bool) {
+// SocketLocation returns the URI of the first available container daemon socket,
+// preferring DOCKER_HOST if set. Returns ("", false) if none is found.
+func SocketLocation() (string, bool) {
 	if dockerHost, exists := os.LookupEnv("DOCKER_HOST"); exists {
 		return dockerHost, true
 	}
@@ -63,7 +64,7 @@ func GetSocketAndHost(containerSocket string) (SocketAndHost, error) {
 	log.Debugf("Handling container host and socket")
 
 	// Prefer DOCKER_HOST, don't override it
-	dockerHost, hasDockerHost := socketLocation()
+	dockerHost, hasDockerHost := SocketLocation()
 	socketHost := SocketAndHost{Socket: containerSocket, Host: dockerHost}
 
 	// ** socketHost.Socket cases **
@@ -79,7 +80,7 @@ func GetSocketAndHost(containerSocket string) (SocketAndHost, error) {
 	// Set host for sanity's sake, when the socket isn't useful
 	if !hasDockerHost && (socketHost.Socket == "-" || !isDockerHostURI(socketHost.Socket) || socketHost.Socket == "") {
 		// Cases: 1B, 2B, 4B
-		socket, found := socketLocation()
+		socket, found := SocketLocation()
 		socketHost.Host = socket
 		hasDockerHost = found
 	}
@@ -102,7 +103,7 @@ func GetSocketAndHost(containerSocket string) (SocketAndHost, error) {
 	// Set sane default socket location if user omitted it
 	if socketHost.Socket == "" {
 		// Cases: 4B
-		socket, _ := socketLocation()
+		socket, _ := SocketLocation()
 		// socket is empty if it isn't found, so assignment here is at worst a no-op
 		log.Debugf("Defaulting container socket to default '%s'", socket)
 		socketHost.Socket = socket

@@ -4,6 +4,7 @@ package container
 
 import (
 	"context"
+	"strings"
 
 	"github.com/moby/moby/client"
 	"github.com/nektos/act/pkg/common"
@@ -32,13 +33,18 @@ func NewDockerNetworkCreateExecutor(name string) common.Executor {
 
 		_, err = cli.NetworkCreate(ctx, name, client.NetworkCreateOptions{
 			Driver: "bridge",
-			Scope:  "local",
 		})
 		if err != nil {
-			return err
+			// Podman (and some other runtimes) may not recognise the bridge driver by that
+			// name, or may require no driver to be specified to use their default. Retry
+			// without an explicit driver before giving up.
+			if strings.Contains(err.Error(), "driver") || strings.Contains(err.Error(), "plugin") {
+				common.Logger(ctx).Debugf("Network creation with bridge driver failed (%v), retrying with runtime default", err)
+				_, err = cli.NetworkCreate(ctx, name, client.NetworkCreateOptions{})
+			}
 		}
 
-		return nil
+		return err
 	}
 }
 
